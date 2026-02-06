@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  MANAGER
+  EMPLOYEE
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  BLOCKED
+  REVIEW
+  DONE
+}
+
+model User {
+  id           String     @id @default(cuid())
+  role         UserRole
+  avatar       String?
+  name         String
+  createdTasks Task[]     @relation("ManagerTasks")
+  assignedTasks Task[]    @relation("EmployeeTasks")
+  auditLogs    AuditLog[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Task {
+  id            String          @id @default(cuid())
+  title         String
+  description   String?
+  status        TaskStatus      @default(TODO)
+  priority      Int
+  deadline      DateTime?
+  parentId      String?
+  parent        Task?           @relation("TaskHierarchy", fields: [parentId], references: [id])
+  children      Task[]          @relation("TaskHierarchy")
+  managerId     String
+  manager       User            @relation("ManagerTasks", fields: [managerId], references: [id])
+  employeeId    String?
+  employee      User?           @relation("EmployeeTasks", fields: [employeeId], references: [id])
+  checklist     ChecklistItem[]
+  evidence      Evidence[]
+  auditLogs     AuditLog[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+model ChecklistItem {
+  id            String   @id @default(cuid())
+  text          String
+  isCompleted   Boolean  @default(false)
+  requiresProof Boolean  @default(false)
+  taskId        String
+  task          Task     @relation(fields: [taskId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Evidence {
+  id         String   @id @default(cuid())
+  fileUrl    String
+  type       String
+  uploadedAt DateTime @default(now())
+  taskId     String
+  task       Task     @relation(fields: [taskId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String
+  oldValue  String?
+  newValue  String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  taskId    String?
+  task      Task?    @relation(fields: [taskId], references: [id])
+  timestamp DateTime @default(now())
+}
